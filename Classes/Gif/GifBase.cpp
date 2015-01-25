@@ -36,5 +36,6 @@ Texture2D* GifBase::createTexture(Bitmap* bm, int index, bool getCache)
 		texture = textureCache->addImage(img, textureName.c_str());
 	} while (0);
 
+    CC_SAFE_RELEASE(img);
 	return texture;
 }
