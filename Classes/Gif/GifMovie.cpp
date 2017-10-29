@@ -62,7 +62,7 @@ GIFMovie::~GIFMovie()
     if (fGIF)
         DGifCloseFile(fGIF);
 }
- 
+
 static uint32_t savedimage_duration(const SavedImage* image)
 {
 	uint32_t duration = 0;
@@ -85,7 +85,7 @@ static uint32_t savedimage_duration(const SavedImage* image)
 GifFrame GIFMovie::getGifFrameByIndex(unsigned int frameIndex)
 {
 	GifFrame gif;
-    
+
 	if(fGIF == NULL || frameIndex > getGifCount())
 	{
 		return gif;
@@ -93,7 +93,7 @@ GifFrame GIFMovie::getGifFrameByIndex(unsigned int frameIndex)
 	int duration = savedimage_duration(&fGIF->SavedImages[frameIndex]);
 	fCurrIndex = frameIndex;
 	onGetBitmap(&m_bitmap);
-    
+
 	gif.m_frameData.m_duration = duration;
 	gif.m_frameData.m_index = frameIndex;
     gif.m_bm = &m_bitmap;
@@ -105,18 +105,18 @@ bool GIFMovie::onGetInfo(Info* info)
 {
     if (NULL == fGIF)
         return false;
- 
+
     uint32_t dur = 0;
     for (int i = 0; i < fGIF->ImageCount; i++)
         dur += savedimage_duration(&fGIF->SavedImages[i]);
- 
+
     info->fDuration = dur;
     info->fWidth = fGIF->SWidth;
     info->fHeight = fGIF->SHeight;
     info->fIsOpaque = false;    // how to compute?
     return true;
 }
- 
+
 bool GIFMovie::onSetTime(uint32_t time)
 {
 	if (NULL == fGIF)
@@ -146,7 +146,7 @@ static void copyLine(Rgba* dst, const unsigned char* src, const ColorMapObject* 
 		}
 	}
 }
- 
+
 static void blitNormal(Bitmap* bm, const SavedImage* frame, const ColorMapObject* cmap,
                     int transparent)
 {
@@ -159,7 +159,7 @@ static void blitNormal(Bitmap* bm, const SavedImage* frame, const ColorMapObject
     if (frame->ImageDesc.Left + copyWidth > width) {
         copyWidth = width - frame->ImageDesc.Left;
     }
- 
+
     GifWord copyHeight = frame->ImageDesc.Height;
     if (frame->ImageDesc.Top + copyHeight > height) {
         copyHeight = height - frame->ImageDesc.Top;
@@ -171,7 +171,7 @@ static void blitNormal(Bitmap* bm, const SavedImage* frame, const ColorMapObject
         dst += width;
     }
 }
- 
+
 static void fillRect(Bitmap* bm, GifWord left, GifWord top, GifWord width, GifWord height,
                     Rgba col)
 {
@@ -182,25 +182,26 @@ static void fillRect(Bitmap* bm, GifWord left, GifWord top, GifWord width, GifWo
     if (left + copyWidth > bmWidth) {
         copyWidth = bmWidth - left;
     }
- 
+
     GifWord copyHeight = height;
     if (top + copyHeight > bmHeight) {
         copyHeight = bmHeight - top;
     }
- 
+
 	for (; copyHeight > 0; copyHeight--)
 	{
-		for(int wIndex = 0; wIndex < bmWidth; wIndex++, dst++)
+		for(int wIndex = 0; wIndex < copyWidth; wIndex++)
 		{
-			*dst = col;
+			dst[wIndex] = col;
 		}
+    dst += bmWidth;
 	}
 }
- 
+
 static void drawFrame(Bitmap* bm, const SavedImage* frame, const ColorMapObject* cmap)
 {
     int transparent = -1;
- 
+
     for (int i = 0; i < frame->ExtensionBlockCount; ++i) {
         ExtensionBlock* eb = frame->ExtensionBlocks + i;
         if (eb->Function == GRAPHICS_EXT_FUNC_CODE &&
@@ -211,20 +212,20 @@ static void drawFrame(Bitmap* bm, const SavedImage* frame, const ColorMapObject*
             }
         }
     }
- 
+
     if (frame->ImageDesc.ColorMap != NULL) {
         // use local color table
         cmap = frame->ImageDesc.ColorMap;
     }
- 
+
     if (cmap == NULL || cmap->ColorCount != (1 << cmap->BitsPerPixel)) {
-        
+
         return;
     }
- 
-    blitNormal(bm, frame, cmap, transparent);   
+
+    blitNormal(bm, frame, cmap, transparent);
 }
- 
+
 static bool checkIfWillBeCleared(const SavedImage* frame)
 {
     for (int i = 0; i < frame->ExtensionBlockCount; ++i) {
@@ -240,7 +241,7 @@ static bool checkIfWillBeCleared(const SavedImage* frame)
     }
     return false;
 }
- 
+
 static void getTransparencyAndDisposalMethod(const SavedImage* frame, bool* trans, int* disposal)
 {
     *trans = false;
@@ -254,7 +255,7 @@ static void getTransparencyAndDisposalMethod(const SavedImage* frame, bool* tran
         }
     }
 }
- 
+
 // return true if area of 'target' is completely covers area of 'covered'
 static bool checkIfCover(const SavedImage* target, const SavedImage* covered)
 {
@@ -268,7 +269,7 @@ static bool checkIfCover(const SavedImage* target, const SavedImage* covered)
     }
     return false;
 }
- 
+
 static void disposeFrameIfNeeded(Bitmap* bm, const SavedImage* cur, const SavedImage* next,
                                 Bitmap* backup, Rgba color)
 {
@@ -286,7 +287,7 @@ static void disposeFrameIfNeeded(Bitmap* bm, const SavedImage* cur, const SavedI
 	//#define DISPOSE_DO_NOT            1       /* Leave image in place */
 	//#define DISPOSE_BACKGROUND        2       /* Set area too background color */
 	//#define DISPOSE_PREVIOUS          3       /* Restore to previous content */
-	
+
     if ((curDisposal == 2 || curDisposal == 3)
         && (nextTrans || !checkIfCover(next, cur))) {
         switch (curDisposal) {
@@ -297,17 +298,17 @@ static void disposeFrameIfNeeded(Bitmap* bm, const SavedImage* cur, const SavedI
                     cur->ImageDesc.Width, cur->ImageDesc.Height,
                     color);
             break;
- 
+
         // restore to previous
         case 3:
 			{
 				bm->swap(backup);
 			}
-			
+
             break;
         }
     }
- 
+
     // Save current image if next frame's disposal method == 3
 	if (nextDisposal == 3)
 		memcpy(backup->getAddr(0,0), bm->getAddr(0,0), bm->getPixelLenth() * sizeof(Rgba));
@@ -318,11 +319,11 @@ bool GIFMovie::onGetBitmap(Bitmap* bm)
     const GifFileType* gif = fGIF;
     if (NULL == gif)
         return false;
- 
+
     if (gif->ImageCount < 1) {
         return false;
     }
- 
+
 	const int width = bm->m_width = gif->SWidth;
 	const int height = bm->m_hight = gif->SHeight;
 	if (width <= 0 || height <= 0) {
@@ -345,7 +346,7 @@ bool GIFMovie::onGetBitmap(Bitmap* bm)
 		// rewind to 1st frame for repeat
 		startIndex = 0;
 	}
- 
+
     int lastIndex = fCurrIndex;
     if (lastIndex < 0) {
         // first time
@@ -354,14 +355,14 @@ bool GIFMovie::onGetBitmap(Bitmap* bm)
         // this block must not be reached.
         lastIndex = fGIF->ImageCount - 1;
     }
- 
+
 	Rgba bgColor;
     if (gif->SColorMap != NULL) {
         const GifColorType& col = gif->SColorMap->Colors[fGIF->SBackGroundColor];
 		bgColor.setColor(0xFF, col.Red, col.Green, col.Blue);
     }
- 
-	static Rgba paintingColor;
+
+	Rgba paintingColor;
     // draw each frames - not intelligent way
 	for (int i = startIndex; i <= lastIndex; i++) {
 		const SavedImage* cur = &fGIF->SavedImages[i];
@@ -388,7 +389,7 @@ bool GIFMovie::onGetBitmap(Bitmap* bm)
 			drawFrame(bm, cur, gif->SColorMap);
 		}
 	}
- 
+
     // save index
     fLastDrawIndex = lastIndex;
 
