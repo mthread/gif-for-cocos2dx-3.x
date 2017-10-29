@@ -362,7 +362,7 @@ bool GIFMovie::onGetBitmap(Bitmap* bm)
 		bgColor.setColor(0xFF, col.Red, col.Green, col.Blue);
     }
 
-	static Rgba paintingColor;
+	Rgba paintingColor;
     // draw each frames - not intelligent way
 	for (int i = startIndex; i <= lastIndex; i++) {
 		const SavedImage* cur = &fGIF->SavedImages[i];
